@@ -2,10 +2,10 @@
 01 - Simple Chatbot Agent
 
 A basic conversational agent that demonstrates:
-- Setting up an LLM connection
-- System prompts
-- Conversation loop with chat history
-- Graceful exit handling
+- Config-driven system prompts (YAML, not hardcoded)
+- Input validation and conversation bounds
+- Structured logging
+- Clean LLM provider abstraction
 
 Usage:
     python main.py
@@ -16,21 +16,36 @@ Usage:
 import argparse
 
 from shared.llm import chat, get_usage
+from shared.config import load_agent_config
+from shared.logging import get_logger
+from shared.utils.conversation import validate_input, trim_history
 
-SYSTEM_PROMPT = """You are a helpful, friendly assistant. Keep your responses concise \
-and conversational. If you don't know something, say so honestly."""
+logger = get_logger(__name__)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Simple Chatbot Agent")
-    parser.add_argument("--provider", default="groq", help="LLM provider (groq, openai, anthropic, gemini)")
-    parser.add_argument("--model", default=None, help="Model name (uses provider default if not set)")
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="LLM provider (groq, openai, anthropic, gemini)",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Model name (uses provider default if not set)",
+    )
     args = parser.parse_args()
 
-    print(f"Simple Chatbot | provider: {args.provider} | model: {args.model or 'default'}")
+    config = load_agent_config("simple-chatbot")
+    provider = args.provider or config.provider
+    model = args.model or config.model
+
+    logger.info("Starting chatbot: provider=%s model=%s", provider, model or "default")
+    print(f"Simple Chatbot | provider: {provider} | model: {model or 'default'}")
     print("Type 'quit' or 'exit' to stop.\n")
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": config.system_prompt}]
 
     while True:
         try:
@@ -47,29 +62,40 @@ def main():
             print("Bye!")
             break
 
+        error = validate_input(user_input, config.max_input_length)
+        if error:
+            print(f"  [{error}]\n")
+            continue
+
         messages.append({"role": "user", "content": user_input})
+        messages = trim_history(messages, config.max_history)
 
         try:
-            response = chat(messages, provider=args.provider, model=args.model)
+            response = chat(messages, provider=provider, model=model)
             usage = get_usage()
             print(f"Bot: {response}")
-            print(f"    [{usage['calls']} calls | {usage['total_input_tokens']+usage['total_output_tokens']} tokens | ${usage['total_cost']:.6f}]\n")
+            print(
+                f"    [{usage['calls']} calls | "
+                f"{usage['total_input_tokens']+usage['total_output_tokens']} tokens | "
+                f"${usage['total_cost']:.6f}]\n"
+            )
             messages.append({"role": "assistant", "content": response})
         except Exception as e:
+            logger.error("LLM call failed: %s", e)
             print(f"Error: {e}\n")
-            messages.pop()  # Remove failed user message from history
+            messages.pop()  # Remove failed user message
 
 
 def _print_session_summary():
     usage = get_usage()
     if usage["calls"] == 0:
         return
-    print(f"\n--- Session Summary ---")
+    print("\n--- Session Summary ---")
     print(f"  API calls:     {usage['calls']}")
     print(f"  Input tokens:  {usage['total_input_tokens']}")
     print(f"  Output tokens: {usage['total_output_tokens']}")
     print(f"  Total cost:    ${usage['total_cost']:.6f}")
-    print(f"-----------------------")
+    print("-----------------------")
 
 
 if __name__ == "__main__":
