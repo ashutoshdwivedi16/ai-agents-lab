@@ -13,12 +13,7 @@ Usage:
     python main.py --provider anthropic --model claude-sonnet-4-5-20250929
 """
 
-import sys
-import os
 import argparse
-
-# Add project root to path so we can import shared modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from shared.llm import chat, get_usage
 
