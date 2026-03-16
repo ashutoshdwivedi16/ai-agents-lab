@@ -54,6 +54,15 @@ class AgentConfig(BaseModel):
     model: str | None = None
 
 
+class MetricsConfig(BaseModel):
+    """Config for the metrics subsystem."""
+
+    enabled: bool = True
+    backend: str = "sqlite"  # "sqlite" | "noop" | future: "prometheus"
+    sqlite_path: str = "data/metrics.db"
+    session_id: str = "auto"  # "auto" = generate UUID per session
+
+
 class AppConfig(BaseModel):
     """Top-level application config."""
 
@@ -61,3 +70,4 @@ class AppConfig(BaseModel):
     max_retries: int = 3
     retry_base_delay: float = 1.0
     providers: dict[str, ProviderConfig] = {}
+    metrics: MetricsConfig = MetricsConfig()

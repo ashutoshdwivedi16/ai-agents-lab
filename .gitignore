@@ -35,6 +35,9 @@ Thumbs.db
 *.log
 logs/
 
+# Data (metrics DB)
+data/
+
 # Testing
 .pytest_cache/
 htmlcov/

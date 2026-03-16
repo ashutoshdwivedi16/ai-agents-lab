@@ -25,3 +25,10 @@ providers:
     env_key: GOOGLE_API_KEY
     pricing:
       gemini-2.0-flash: [0.10, 0.40]
+
+# Metrics configuration
+metrics:
+  enabled: true
+  backend: sqlite             # "sqlite" | "noop" | future: "prometheus"
+  sqlite_path: data/metrics.db
+  session_id: auto            # "auto" = generate UUID per session
