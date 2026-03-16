@@ -6,6 +6,7 @@ The Strategy Pattern with client reuse:
 - Usage tracking happens once in the base class, not per provider
 """
 
+import time
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -71,16 +72,33 @@ class LLMProvider(ABC):
 
     def call_with_response(self, messages: list[dict], model: str) -> ChatResponse:
         """Send messages, track usage, return full ChatResponse."""
+        start = time.perf_counter()
         response = self._do_call(self.client, messages, model)
+        latency_ms = (time.perf_counter() - start) * 1000
+
         _session.track(model, response.usage.input_tokens, response.usage.output_tokens)
         logger.debug(
-            "LLM call: provider=%s model=%s tokens=%d+%d cost=$%.6f",
+            "LLM call: provider=%s model=%s tokens=%d+%d cost=$%.6f latency=%.1fms",
             self.name,
             model,
             response.usage.input_tokens,
             response.usage.output_tokens,
             response.usage.cost,
+            latency_ms,
         )
+
+        # Record to persistent metrics (fire-and-forget, never crashes)
+        from shared.metrics import record_llm_call
+
+        record_llm_call(
+            provider=self.name,
+            model=model,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            cost=response.usage.cost,
+            latency_ms=latency_ms,
+        )
+
         return response
 
 
