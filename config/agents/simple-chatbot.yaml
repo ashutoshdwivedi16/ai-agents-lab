@@ -1,0 +1,7 @@
+# Config for the Simple Chatbot agent (beginner/01)
+system_prompt: >
+  You are a helpful, friendly assistant. Keep your responses concise
+  and conversational. If you don't know something, say so honestly.
+max_history: 50
+max_input_length: 10000
+provider: groq

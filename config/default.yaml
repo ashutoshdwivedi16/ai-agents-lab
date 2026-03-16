@@ -1,0 +1,27 @@
+# Default configuration for AI Agents Lab
+default_provider: groq
+max_retries: 3
+retry_base_delay: 1.0
+
+providers:
+  groq:
+    default_model: llama-3.3-70b-versatile
+    env_key: GROQ_API_KEY
+    pricing:
+      llama-3.3-70b-versatile: [0.59, 0.79]
+      llama-3.1-8b-instant: [0.05, 0.08]
+  openai:
+    default_model: gpt-4o-mini
+    env_key: OPENAI_API_KEY
+    pricing:
+      gpt-4o-mini: [0.15, 0.60]
+  anthropic:
+    default_model: claude-sonnet-4-5-20250929
+    env_key: ANTHROPIC_API_KEY
+    pricing:
+      claude-sonnet-4-5-20250929: [3.00, 15.00]
+  gemini:
+    default_model: gemini-2.0-flash
+    env_key: GOOGLE_API_KEY
+    pricing:
+      gemini-2.0-flash: [0.10, 0.40]
