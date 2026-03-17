@@ -8,6 +8,8 @@ from shared.retry import llm_retry
 
 
 class GroqProvider(LLMProvider):
+    """Groq cloud inference — OpenAI-compatible API."""
+
     name = "groq"
     default_model = "llama-3.3-70b-versatile"
     env_key = "GROQ_API_KEY"
@@ -26,8 +28,11 @@ class GroqProvider(LLMProvider):
                 input_tokens=response.usage.prompt_tokens,
                 output_tokens=response.usage.completion_tokens,
             )
+        content = ""
+        if response.choices:
+            content = response.choices[0].message.content or ""
         return ChatResponse(
-            content=response.choices[0].message.content or "",
+            content=content,
             usage=usage,
             model=model,
             provider=self.name,

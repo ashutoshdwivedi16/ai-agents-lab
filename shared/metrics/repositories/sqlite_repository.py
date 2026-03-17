@@ -33,7 +33,12 @@ CREATE INDEX IF NOT EXISTS idx_metrics_agent     ON llm_metrics(agent_name);
 
 
 class SQLiteRepository(MetricsRepository):
-    """SQLite-backed metrics storage. Auto-creates tables on init."""
+    """SQLite-backed metrics storage. Auto-creates tables on init.
+
+    Supports context manager protocol for safe resource cleanup:
+        with SQLiteRepository(":memory:") as repo:
+            repo.save(record)
+    """
 
     def __init__(self, db_path: str = "data/metrics.db"):
         if db_path != ":memory:":
@@ -42,6 +47,13 @@ class SQLiteRepository(MetricsRepository):
         self._conn.row_factory = sqlite3.Row
         self._init_schema()
         logger.info("SQLiteRepository initialized: %s", db_path)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
 
     def _init_schema(self) -> None:
         cursor = self._conn.cursor()

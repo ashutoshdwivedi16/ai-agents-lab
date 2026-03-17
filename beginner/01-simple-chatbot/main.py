@@ -6,6 +6,7 @@ A basic conversational agent that demonstrates:
 - Input validation and conversation bounds
 - Structured logging
 - Clean LLM provider abstraction
+- Persistent metrics (SQLite) with proper cleanup
 
 Usage:
     python main.py
@@ -14,16 +15,22 @@ Usage:
 """
 
 import argparse
+import atexit
 
 from shared.llm import chat, get_usage
 from shared.config import load_agent_config
 from shared.logging import get_logger
+from shared.metrics import shutdown as metrics_shutdown
 from shared.utils.conversation import validate_input, trim_history
 
 logger = get_logger(__name__)
 
+# Ensure metrics DB connection is closed on exit (covers all exit paths)
+atexit.register(metrics_shutdown)
+
 
 def main():
+    """Run the interactive chatbot loop."""
     parser = argparse.ArgumentParser(description="Simple Chatbot Agent")
     parser.add_argument(
         "--provider",
@@ -82,11 +89,12 @@ def main():
             messages.append({"role": "assistant", "content": response})
         except Exception as e:
             logger.error("LLM call failed: %s", e)
-            print(f"Error: {e}\n")
+            print(f"Error: {type(e).__name__}: {e}\n")
             messages.pop()  # Remove failed user message
 
 
 def _print_session_summary():
+    """Display end-of-session cost and token summary."""
     usage = get_usage()
     if usage["calls"] == 0:
         return

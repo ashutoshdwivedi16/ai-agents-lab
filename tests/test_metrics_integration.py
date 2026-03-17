@@ -141,7 +141,8 @@ class TestChatIntegration:
         assert summary.total_calls == 1
         assert summary.total_input_tokens == 42
         assert summary.total_output_tokens == 18
-        assert abs(summary.total_cost - 0.001) < 1e-9
+        # Cost is 0.0 because "fake-v1" has no pricing in config (expected)
+        assert summary.total_cost == 0.0
         assert summary.by_provider == {"fake-metrics": 1}
 
     def test_chat_records_latency(self):
@@ -200,12 +201,13 @@ class TestInitMetrics:
         init_metrics(config)
         assert isinstance(get_backend(), SQLiteBackend)
 
-    def test_init_unknown_backend_falls_back_to_noop(self):
+    def test_invalid_backend_rejected_by_config(self):
+        """MetricsConfig.backend only accepts 'sqlite' or 'noop'."""
+        from pydantic import ValidationError
         from shared.models import MetricsConfig
 
-        config = MetricsConfig(enabled=True, backend="nonexistent")
-        init_metrics(config)
-        assert isinstance(get_backend(), NoopBackend)
+        with pytest.raises(ValidationError, match="literal_error"):
+            MetricsConfig(enabled=True, backend="nonexistent")
 
     def test_set_and_get_backend(self):
         noop = NoopBackend()

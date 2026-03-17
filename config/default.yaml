@@ -1,4 +1,10 @@
 # Default configuration for AI Agents Lab
+#
+# All values here are wired into providers at startup:
+#   - default_model, env_key, max_tokens → LLMProvider.apply_config()
+#   - max_retries, retry_base_delay → @llm_retry() decorator
+#   - pricing → SessionUsage.calc_cost()
+
 default_provider: groq
 max_retries: 3
 retry_base_delay: 1.0
@@ -18,6 +24,7 @@ providers:
   anthropic:
     default_model: claude-sonnet-4-5-20250929
     env_key: ANTHROPIC_API_KEY
+    max_tokens: 4096              # Anthropic requires max_tokens per request
     pricing:
       claude-sonnet-4-5-20250929: [3.00, 15.00]
   gemini:
@@ -29,6 +36,6 @@ providers:
 # Metrics configuration
 metrics:
   enabled: true
-  backend: sqlite             # "sqlite" | "noop" | future: "prometheus"
+  backend: sqlite                 # "sqlite" | "noop"
   sqlite_path: data/metrics.db
-  session_id: auto            # "auto" = generate UUID per session
+  session_id: auto                # "auto" = generate UUID per session

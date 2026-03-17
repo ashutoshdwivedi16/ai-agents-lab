@@ -3,9 +3,10 @@
 The Strategy Pattern with client reuse:
 - _create_client() is called once and cached
 - _do_call() is called on every request using the cached client
-- Usage tracking happens once in the base class, not per provider
+- Cost calculation and usage tracking happen once in the base class
 """
 
+import os
 import time
 from abc import ABC, abstractmethod
 from typing import Any
@@ -31,16 +32,20 @@ class LLMProvider(ABC):
     Subclasses must implement:
         _create_client() -> Any
         _do_call(client, messages, model) -> ChatResponse
+
+    Config overrides from YAML are applied via apply_config() during
+    registration — so changing default.yaml actually takes effect.
     """
 
     name: str
     default_model: str
     env_key: str
-    _client: Any = None
+
+    def __init__(self) -> None:
+        self._client: Any = None
 
     def _api_key(self) -> str:
-        import os
-
+        """Read the API key from the configured environment variable."""
         key = os.getenv(self.env_key)
         if not key:
             raise ValueError(f"Missing env var: {self.env_key}")
@@ -62,6 +67,14 @@ class LLMProvider(ABC):
             self._client = self._create_client()
         return self._client
 
+    def apply_config(self, default_model: str, env_key: str) -> None:
+        """Override class defaults with YAML config values.
+
+        Called during provider registration to wire config into the provider.
+        """
+        self.default_model = default_model
+        self.env_key = env_key
+
     def call(self, messages: list[dict], model: str) -> str:
         """Send messages, track usage, return response text.
 
@@ -71,12 +84,16 @@ class LLMProvider(ABC):
         return response.content
 
     def call_with_response(self, messages: list[dict], model: str) -> ChatResponse:
-        """Send messages, track usage, return full ChatResponse."""
+        """Send messages, calculate cost, track usage, return full ChatResponse."""
         start = time.perf_counter()
         response = self._do_call(self.client, messages, model)
         latency_ms = (time.perf_counter() - start) * 1000
 
-        _session.track(model, response.usage.input_tokens, response.usage.output_tokens)
+        # Calculate cost from config-driven pricing table
+        cost = _session.calc_cost(model, response.usage.input_tokens, response.usage.output_tokens)
+        response.usage.cost = cost
+
+        _session.track(model, response.usage.input_tokens, response.usage.output_tokens, cost)
         logger.debug(
             "LLM call: provider=%s model=%s tokens=%d+%d cost=$%.6f latency=%.1fms",
             self.name,
@@ -107,8 +124,22 @@ class LLMProvider(ABC):
 # ---------------------------------------------------------------------------
 
 
-def register_provider(provider: LLMProvider):
-    """Register a provider instance."""
+def register_provider(provider: LLMProvider) -> None:
+    """Register a provider instance and apply config overrides from YAML.
+
+    Wires ProviderConfig.default_model and env_key into the provider
+    so that YAML changes actually take effect (not dead config).
+    """
+    from shared.config import load_app_config
+
+    config = load_app_config()
+    prov_config = config.providers.get(provider.name)
+    if prov_config:
+        provider.apply_config(
+            default_model=prov_config.default_model,
+            env_key=prov_config.env_key,
+        )
+
     _REGISTRY[provider.name] = provider
 
 
@@ -125,7 +156,7 @@ def get_provider(name: str) -> LLMProvider:
 # ---------------------------------------------------------------------------
 
 
-def chat(messages: list, provider: str = "groq", model: str | None = None) -> str:
+def chat(messages: list[dict], provider: str = "groq", model: str | None = None) -> str:
     """Send messages to an LLM and return the response text.
 
     This is the primary public API — signature unchanged from v0.

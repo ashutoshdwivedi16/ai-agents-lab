@@ -61,7 +61,8 @@ def get_backend() -> MetricsBackend:
     global _backend
     if _backend is None:
         init_metrics()
-    assert _backend is not None
+    if _backend is None:
+        raise RuntimeError("Metrics backend failed to initialize")
     return _backend
 
 

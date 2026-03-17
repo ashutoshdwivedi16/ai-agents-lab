@@ -8,6 +8,8 @@ from shared.retry import llm_retry
 
 
 class OpenAIProvider(LLMProvider):
+    """OpenAI API — GPT models."""
+
     name = "openai"
     default_model = "gpt-4o-mini"
     env_key = "OPENAI_API_KEY"
@@ -26,8 +28,11 @@ class OpenAIProvider(LLMProvider):
                 input_tokens=response.usage.prompt_tokens,
                 output_tokens=response.usage.completion_tokens,
             )
+        content = ""
+        if response.choices:
+            content = response.choices[0].message.content or ""
         return ChatResponse(
-            content=response.choices[0].message.content or "",
+            content=content,
             usage=usage,
             model=model,
             provider=self.name,

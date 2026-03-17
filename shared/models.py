@@ -1,5 +1,7 @@
 """Pydantic models for type-safe data across the lab."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -37,11 +39,17 @@ class SessionUsageReport(BaseModel):
 
 
 class ProviderConfig(BaseModel):
-    """Config for a single LLM provider."""
+    """Config for a single LLM provider.
+
+    These values are wired into providers at registration time via
+    LLMProvider.apply_config(), so YAML changes take effect at runtime.
+    """
 
     default_model: str
     env_key: str
-    pricing: dict[str, tuple[float, float]] = {}  # model -> (input_per_1M, output_per_1M)
+    max_tokens: int = 4096  # max output tokens (configurable per provider)
+    pricing: dict[str, tuple[float, float]] = Field(default_factory=dict)
+    # pricing: model_name -> (input_price_per_1M, output_price_per_1M)
 
 
 class AgentConfig(BaseModel):
@@ -58,7 +66,7 @@ class MetricsConfig(BaseModel):
     """Config for the metrics subsystem."""
 
     enabled: bool = True
-    backend: str = "sqlite"  # "sqlite" | "noop" | future: "prometheus"
+    backend: Literal["sqlite", "noop"] = "sqlite"
     sqlite_path: str = "data/metrics.db"
     session_id: str = "auto"  # "auto" = generate UUID per session
 
@@ -69,5 +77,5 @@ class AppConfig(BaseModel):
     default_provider: str = "groq"
     max_retries: int = 3
     retry_base_delay: float = 1.0
-    providers: dict[str, ProviderConfig] = {}
+    providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     metrics: MetricsConfig = MetricsConfig()
